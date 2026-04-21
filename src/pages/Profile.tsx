@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, User, Settings, LogOut, ChevronRight, Star, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('reservations');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null);
 
-  const user = {
-    name: 'Jean Dupont',
-    email: 'jean.dupont@email.com',
-    phone: '06 12 34 56 78',
-    memberSince: 'Janvier 2024',
-    totalReservations: 12
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
+  // Données simulées - à remplacer par de vraies données API
   const reservations = [
     {
       id: '1',
@@ -95,27 +97,27 @@ const Profile: React.FC = () => {
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div className="flex items-center mb-4">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
-                {user.name.split(' ').map(n => n[0]).join('')}
+                {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
               </div>
               <div>
-                <h2 className="text-xl font-semibold">{user.name}</h2>
-                <p className="text-gray-600">Membre depuis {user.memberSince}</p>
+                <h2 className="text-xl font-semibold">{user?.name}</h2>
+                <p className="text-gray-600">Membre depuis Janvier 2024</p>
               </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex items-center text-gray-600">
                 <User size={16} className="mr-2" />
-                <span>{user.email}</span>
+                <span>{user?.email}</span>
               </div>
               <div className="flex items-center text-gray-600">
                 <Clock size={16} className="mr-2" />
-                <span>{user.phone}</span>
+                <span>{user?.phone || 'Non renseigné'}</span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Total réservations</span>
-                <span className="font-semibold">{user.totalReservations}</span>
+                <span className="font-semibold">{reservations.length}</span>
               </div>
             </div>
           </div>
@@ -131,7 +133,10 @@ const Profile: React.FC = () => {
                 </div>
                 <ChevronRight size={20} className="text-gray-400" />
               </button>
-              <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition">
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition"
+              >
                 <div className="flex items-center">
                   <LogOut size={20} className="mr-3 text-red-600" />
                   <span className="text-red-600">Déconnexion</span>

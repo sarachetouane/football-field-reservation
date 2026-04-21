@@ -13,7 +13,7 @@ const Fields: React.FC = () => {
       address: '123 Avenue des Sports, Paris',
       price: 35,
       rating: 4.8,
-      image: '/field1.jpg',
+      image: '/images/image1.jpg',
       features: ['Éclairage', 'Vestiaires', 'Parking'],
       capacity: '11 joueurs'
     },
@@ -23,7 +23,7 @@ const Fields: React.FC = () => {
       address: '45 Rue du Football, Lyon',
       price: 40,
       rating: 4.6,
-      image: '/field2.jpg',
+      image: '/images/image2.png',
       features: ['Synthétique', 'Éclairage', 'Tribunes'],
       capacity: '22 joueurs'
     },
@@ -33,7 +33,7 @@ const Fields: React.FC = () => {
       address: '78 Boulevard Sportif, Marseille',
       price: 30,
       rating: 4.9,
-      image: '/field3.jpg',
+      image: '/images/image3.jpg',
       features: ['Gazon naturel', 'Vestiaires', 'Douches'],
       capacity: '11 joueurs'
     }
@@ -88,8 +88,17 @@ const Fields: React.FC = () => {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFields.map((field) => (
           <div key={field.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
-            <div className="h-48 bg-gradient-to-r from-green-400 to-green-600 relative">
-              <div className="absolute top-4 right-4 bg-white px-2 py-1 rounded-full text-sm font-semibold">
+            <div className="h-48 relative overflow-hidden">
+              <img 
+                src={field.image} 
+                alt={field.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200"%3E%3Crect width="400" height="200" fill="%234ade80"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Arial" font-size="18"%3ETerrain%3C/text%3E%3C/svg%3E';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
                 {field.price}e/heure
               </div>
             </div>

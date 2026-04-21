@@ -7,18 +7,46 @@ const FieldDetail: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
-  const field = {
-    id: id || '1',
-    name: 'Stade Municipal Jean Bouin',
-    address: '123 Avenue des Sports, Paris 15ème',
-    price: 35,
-    rating: 4.8,
-    description: 'Terrain de football de haute qualité avec éclairage professionnel, vestiaires modernes et parking sécurisé. Idéal pour les matchs de compétition et les entraînements.',
-    features: ['Éclairage LED', 'Vestiaires avec douches', 'Parking gratuit', 'Tribunes (100 places)', 'Surface synthétique FIFA'],
-    images: ['/field1.jpg', '/field2.jpg', '/field3.jpg'],
-    capacity: '22 joueurs',
-    dimensions: '105m x 68m'
+  const fieldsData = {
+    '1': {
+      id: '1',
+      name: 'Stade Municipal Jean Bouin',
+      address: '123 Avenue des Sports, Paris 15ème',
+      price: 35,
+      rating: 4.8,
+      description: 'Terrain de football de haute qualité avec éclairage professionnel, vestiaires modernes et parking sécurisé. Idéal pour les matchs de compétition et les entraînements.',
+      features: ['Éclairage LED', 'Vestiaires avec douches', 'Parking gratuit', 'Tribunes (100 places)', 'Surface synthétique FIFA'],
+      image: '/images/image1.jpg',
+      capacity: '11 joueurs',
+      dimensions: '105m x 68m'
+    },
+    '2': {
+      id: '2',
+      name: 'Complex Sportif Le Parc',
+      address: '45 Rue du Football, Lyon',
+      price: 40,
+      rating: 4.6,
+      description: 'Complexe sportif moderne avec terrain synthétique de dernière génération, éclairage professionnel et tribunes confortables. Parfait pour les événements sportifs.',
+      features: ['Synthétique', 'Éclairage', 'Tribunes', 'Vestiaires', 'Parking'],
+      image: '/images/image2.png',
+      capacity: '22 joueurs',
+      dimensions: '105m x 68m'
+    },
+    '3': {
+      id: '3',
+      name: 'Terrain Les Verts',
+      address: '78 Boulevard Sportif, Marseille',
+      price: 30,
+      rating: 4.9,
+      description: 'Terrain en gazon naturel entouré de verdure, ambiance naturelle et calme. Équipement de base pour des matchs conviviaux.',
+      features: ['Gazon naturel', 'Vestiaires', 'Douches', 'Parking'],
+      image: '/images/image3.jpg',
+      capacity: '11 joueurs',
+      dimensions: '100m x 65m'
+    }
   };
+
+  const field = fieldsData[id as keyof typeof fieldsData] || fieldsData['1'];
 
   const timeSlots = [
     { id: '1', startTime: '08:00', endTime: '09:30', available: true },
@@ -44,20 +72,29 @@ const FieldDetail: React.FC = () => {
         <div className="lg:col-span-2">
           {/* Image Gallery */}
           <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-            <div className="h-96 bg-gradient-to-r from-green-400 to-green-600 relative">
+            <div className="h-96 relative">
+              <img 
+                src={field.image} 
+                alt={field.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="400"%3E%3Cdefs%3E%3ClinearGradient id="grass" x1="0%25" y1="0%25" x2="0%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%234ade80;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%2316a34a;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="800" height="400" fill="url(%23grass)"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold"%3ETerrain%3C/text%3E%3C/svg%3E';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
               <div className="absolute top-4 right-4 flex gap-2">
-                <button className="bg-white p-2 rounded-full hover:bg-gray-100 transition">
-                  <Heart size={20} />
+                <button className="bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition shadow-lg">
+                  <Heart size={20} className="text-gray-700" />
                 </button>
-                <button className="bg-white p-2 rounded-full hover:bg-gray-100 transition">
-                  <Share2 size={20} />
+                <button className="bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition shadow-lg">
+                  <Share2 size={20} className="text-gray-700" />
                 </button>
               </div>
-            </div>
-            <div className="flex gap-2 p-4">
-              {[1, 2, 3].map((img) => (
-                <div key={img} className="w-24 h-24 bg-gray-200 rounded cursor-pointer hover:opacity-80 transition"></div>
-              ))}
+              <div className="absolute bottom-4 left-4">
+                <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
+                  {field.price}e/heure
+                </div>
+              </div>
             </div>
           </div>
 
