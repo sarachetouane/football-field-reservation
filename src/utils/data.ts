@@ -3,19 +3,19 @@ import { Field, TimeSlot } from '../types';
 export const mockFields: Field[] = [
   {
     id: '1',
-    name: 'Stade Municipal Jean Bouin',
-    address: '123 Avenue des Sports, Paris 15ème',
-    price: 35,
+    name: 'Terrain Les Verts',
+    address: 'Temara',
+    price: 10,
     description: 'Terrain de football de haute qualité avec éclairage professionnel, vestiaires modernes et parking sécurisé. Idéal pour les matchs de compétition et les entraînements.',
-    image: '/field1.jpg',
+    image: '/images/image1.jpg',
     features: ['Éclairage LED', 'Vestiaires avec douches', 'Parking gratuit', 'Tribunes (100 places)', 'Surface synthétique FIFA'],
     availableSlots: generateTimeSlots()
   },
   {
     id: '2',
     name: 'Complex Sportif Le Parc',
-    address: '45 Rue du Football, Lyon',
-    price: 40,
+    address: 'RABAT',
+    price: 12,
     description: 'Complexe sportif moderne avec deux terrains de football, équipement de dernière génération et infrastructure complète pour les équipes.',
     image: '/field2.jpg',
     features: ['Surface synthétique', 'Éclairage puissant', 'Tribunes couvertes', 'Bar/Restaurant', 'Parking surveillé'],
@@ -23,9 +23,9 @@ export const mockFields: Field[] = [
   },
   {
     id: '3',
-    name: 'Terrain Les Verts',
-    address: '78 Boulevard Sportif, Marseille',
-    price: 30,
+    name: 'Terrain Académie Salhy',
+    address: 'AIN ATIQ',
+    price: 15,
     description: 'Terrain traditionnel en gazon naturel parfaitement entretenu, ambiance conviviale et idéale pour le football de loisir.',
     image: '/field3.jpg',
     features: ['Gazon naturel', 'Vestiaires', 'Douches chaudes', 'Zone de pique-nique', 'Accès PMR'],

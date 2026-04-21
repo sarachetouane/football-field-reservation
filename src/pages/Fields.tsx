@@ -1,17 +1,25 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter, MapPin, Star, Clock, Users } from 'lucide-react';
 
 const Fields: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedFilter, setSelectedFilter] = useState('all');
+
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl) {
+      setSearchTerm(searchFromUrl);
+    }
+  }, [searchParams]);
 
   const fields = [
     {
       id: '1',
-      name: 'Stade Municipal Jean Bouin',
-      address: '123 Avenue des Sports, Paris',
-      price: 35,
+      name: 'Terrain Les Verts',
+      address: 'TEMARA',
+      price: 10,
       rating: 4.8,
       image: '/images/image1.jpg',
       features: ['Éclairage', 'Vestiaires', 'Parking'],
@@ -20,8 +28,8 @@ const Fields: React.FC = () => {
     {
       id: '2',
       name: 'Complex Sportif Le Parc',
-      address: '45 Rue du Football, Lyon',
-      price: 40,
+      address: 'RABAT',
+      price: 12,
       rating: 4.6,
       image: '/images/image2.png',
       features: ['Synthétique', 'Éclairage', 'Tribunes'],
@@ -29,9 +37,9 @@ const Fields: React.FC = () => {
     },
     {
       id: '3',
-      name: 'Terrain Les Verts',
-      address: '78 Boulevard Sportif, Marseille',
-      price: 30,
+      name: 'Terrain Académie Salhy',
+      address: 'AIN ATIQ',
+      price: 15,
       rating: 4.9,
       image: '/images/image3.jpg',
       features: ['Gazon naturel', 'Vestiaires', 'Douches'],
