@@ -1,18 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiService } from '../services/api';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
+  role: string;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, phone?: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,26 +34,29 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const initializeAuth = () => {
+      if (apiService.isAuthenticated()) {
+        const currentUser = apiService.getCurrentUser();
+        setUser(currentUser);
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Simulation d'une API - à remplacer par un vrai appel API
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const foundUser = users.find((u: any) => u.email === email && u.password === password);
+      const response = await apiService.login({ email, password });
       
-      if (foundUser) {
-        const { password: _, ...userWithoutPassword } = foundUser;
-        setUser(userWithoutPassword);
-        localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+      if (response.success && response.data) {
+        setUser(response.data.user);
         return true;
       }
+      
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -58,23 +64,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string, phone?: string): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string, phone: string): Promise<boolean> => {
     try {
-      // Simulation d'une API - à remplacer par un vrai appel API
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const response = await apiService.register({ name, email, password, phone });
       
-      if (users.find((u: any) => u.email === email)) {
-        return false; // Email déjà utilisé
+      if (response.success && response.data) {
+        setUser(response.data.user);
+        return true;
       }
       
-      const newUser = { id: Date.now().toString(), name, email, password, phone };
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-      return true;
+      return false;
     } catch (error) {
       console.error('Register error:', error);
       return false;
@@ -82,8 +81,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    apiService.logout();
     setUser(null);
-    localStorage.removeItem('user');
   };
 
   const value: AuthContextType = {
@@ -92,6 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     isAuthenticated: !!user,
+    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

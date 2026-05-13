@@ -7,17 +7,40 @@ import Register from './Register';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   message?: string;
+  requiredRole?: string;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  message = "Vous devez être connecté pour accéder à cette page" 
+  message = "Vous devez être connecté pour accéder à cette page",
+  requiredRole
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
 
   if (isAuthenticated) {
+    if (requiredRole && user?.role !== requiredRole) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
+              <Lock className="w-10 h-10 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold mb-3">Accès non autorisé</h1>
+            <p className="text-gray-600 mb-6">
+              Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+            </p>
+            <button
+              onClick={() => window.history.back()}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700"
+            >
+              Retour
+            </button>
+          </div>
+        </div>
+      );
+    }
     return <>{children}</>;
   }
 

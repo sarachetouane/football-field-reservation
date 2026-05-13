@@ -1,63 +1,73 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapPin, Star, Clock, Users, Calendar, ChevronLeft, Heart, Share2 } from 'lucide-react';
+import { apiService, Field, TimeSlot } from '../services/api';
 
 const FieldDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [field, setField] = useState<Field | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fieldsData = {
-    '1': {
-      id: '1',
-      name: 'Terrain Les Verts',
-      address: 'TEMARA',
-      price: 10,
-      rating: 4.8,
-      description: 'Terrain de football de haute qualité avec éclairage professionnel, vestiaires modernes et parking sécurisé. Idéal pour les matchs de compétition et les entraînements.',
-      features: ['Éclairage LED', 'Vestiaires avec douches', 'Parking gratuit', 'Tribunes (100 places)', 'Surface synthétique FIFA'],
-      image: '/images/image1.jpg',
-      capacity: '11 joueurs',
-      dimensions: '105m x 68m'
-    },
-    '2': {
-      id: '2',
-      name: 'Complex Sportif Le Parc',
-      address: 'RABAT',
-      price: 12,
-      rating: 4.6,
-      description: 'Complexe sportif moderne avec terrain synthétique de dernière génération, éclairage professionnel et tribunes confortables. Parfait pour les événements sportifs.',
-      features: ['Synthétique', 'Éclairage', 'Tribunes', 'Vestiaires', 'Parking'],
-      image: '/images/image2.png',
-      capacity: '11 joueurs',
-      dimensions: '105m x 68m'
-    },
-    '3': {
-      id: '3',
-      name: 'Terrain Académie Salhy',
-      address: 'AIN ATIQ',
-      price: 15,
-      rating: 4.9,
-      description: 'Terrain en gazon naturel entouré de verdure, ambiance naturelle et calme. Équipement de base pour des matchs conviviaux.',
-      features: ['Gazon naturel', 'Vestiaires', 'Douches', 'Parking'],
-      image: '/images/image3.jpg',
-      capacity: '11 joueurs',
-      dimensions: '100m x 65m'
-    }
-  };
+  useEffect(() => {
+    const fetchField = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await apiService.getFieldById(id);
+        
+        if (response.success && response.data) {
+          setField(response.data);
+        } else {
+          setError('Terrain non trouvé');
+        }
+      } catch (error) {
+        console.error('Error fetching field:', error);
+        setError('Erreur lors du chargement du terrain');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const field = fieldsData[id as keyof typeof fieldsData] || fieldsData['1'];
+    fetchField();
+  }, [id]);
 
-  const timeSlots = [
-    { id: '1', startTime: '08:00', endTime: '09:30', available: true },
-    { id: '2', startTime: '09:30', endTime: '11:00', available: true },
-    { id: '3', startTime: '11:00', endTime: '12:30', available: false },
-    { id: '4', startTime: '14:00', endTime: '15:30', available: true },
-    { id: '5', startTime: '15:30', endTime: '17:00', available: true },
-    { id: '6', startTime: '17:00', endTime: '18:30', available: false },
-    { id: '7', startTime: '18:30', endTime: '20:00', available: true },
-    { id: '8', startTime: '20:00', endTime: '21:30', available: true },
-  ];
+  // Filter time slots for selected date
+  const availableTimeSlots = field?.availableSlots.filter(slot => 
+    slot.date === selectedDate && slot.available
+  ) || [];
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !field) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Erreur</h1>
+          <p className="text-gray-600 mb-6">{error || 'Terrain non trouvé'}</p>
+          <Link
+            to="/fields"
+            className="inline-flex items-center text-green-600 hover:text-green-700"
+          >
+            <ChevronLeft size={20} className="mr-1" />
+            Retour aux terrains
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -110,14 +120,7 @@ const FieldDetail: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center">
                     <Star className="text-yellow-400 fill-current" size={16} />
-                    <span className="ml-1 font-medium">{field.rating}</span>
-                  </div>
-                  <div className="flex items-center text-gray-600">
-                    <Users size={16} className="mr-1" />
-                    <span>{field.capacity}</span>
-                  </div>
-                  <div className="text-gray-600">
-                    {field.dimensions}
+                    <span className="ml-1 font-medium">{field.rating || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -157,6 +160,7 @@ const FieldDetail: React.FC = () => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
               />
             </div>
@@ -167,29 +171,32 @@ const FieldDetail: React.FC = () => {
                 Créneaux disponibles
               </label>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {timeSlots.map((slot) => (
-                  <button
-                    key={slot.id}
-                    onClick={() => slot.available && setSelectedSlot(slot.id)}
-                    disabled={!slot.available}
-                    className={`w-full p-3 rounded-lg border text-left transition ${
-                      !slot.available
-                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : selectedSlot === slot.id
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'bg-white border-gray-300 hover:border-green-500 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">
-                        {slot.startTime} - {slot.endTime}
-                      </span>
-                      {!slot.available && (
-                        <span className="text-xs">Indisponible</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                {availableTimeSlots.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    Aucun créneau disponible pour cette date
+                  </p>
+                ) : (
+                  availableTimeSlots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      onClick={() => setSelectedSlot(slot)}
+                      className={`w-full p-3 rounded-lg border text-left transition ${
+                        selectedSlot?.id === slot.id
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white border-gray-300 hover:border-green-500 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {slot.startTime} - {slot.endTime}
+                        </span>
+                        {slot.price && (
+                          <span className="text-sm">{slot.price}e</span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -201,23 +208,28 @@ const FieldDetail: React.FC = () => {
               </div>
               <div className="flex justify-between font-semibold text-lg">
                 <span>Total</span>
-                <span className="text-green-600">{field.price}e</span>
+                <span className="text-green-600">{selectedSlot?.price || field.price}e</span>
               </div>
             </div>
 
             {/* Book Button */}
-            <Link
-              to={`/reservation/${field.id}`}
-              state={{ date: selectedDate, slotId: selectedSlot }}
+            <button
+              onClick={() => {
+                if (selectedSlot) {
+                  navigate(`/reservation/${field.id}`, {
+                    state: { date: selectedDate, timeSlot: selectedSlot }
+                  });
+                }
+              }}
+              disabled={!selectedSlot}
               className={`block w-full text-center py-3 rounded-lg font-medium transition ${
                 selectedSlot
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
-              onClick={(e) => !selectedSlot && e.preventDefault()}
             >
               {selectedSlot ? 'Réserver maintenant' : 'Sélectionnez un créneau'}
-            </Link>
+            </button>
           </div>
         </div>
       </div>

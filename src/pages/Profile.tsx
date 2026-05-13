@@ -1,69 +1,279 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, User, Settings, LogOut, ChevronRight, Star, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService, Reservation } from '../services/api';
+
+const reservationCardClass =
+  'bg-white border border-gray-200 rounded-lg p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow duration-200';
+
+type ReservationCardVariant = 'upcoming' | 'past' | 'cancelled' | 'other';
+
+interface ReservationListCardProps {
+  reservation: Reservation;
+  fieldInfo: { name: string; address: string };
+  variant: ReservationCardVariant;
+  getStatusColor: (status: string) => string;
+  getStatusText: (status: string) => string;
+  onEdit?: () => void;
+  onCancel?: () => void;
+}
+
+const ReservationListCard: React.FC<ReservationListCardProps> = ({
+  reservation,
+  fieldInfo,
+  variant,
+  getStatusColor,
+  getStatusText,
+  onEdit,
+  onCancel,
+}) => {
+  const muted = variant !== 'upcoming';
+  const accentClass =
+    variant === 'upcoming'
+      ? 'border-l-4 border-l-green-600'
+      : variant === 'cancelled'
+        ? 'border-l-4 border-l-red-400'
+        : variant === 'other'
+          ? 'border-l-4 border-l-amber-400'
+          : 'border-l-4 border-l-gray-300';
+
+  return (
+    <div
+      className={`${reservationCardClass} ${accentClass} ${muted ? 'opacity-[0.97]' : ''}`}
+    >
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
+          <h5 className="text-lg font-bold leading-snug text-gray-900 md:text-xl">
+            {fieldInfo.name}
+          </h5>
+          <div className="space-y-2.5 text-sm text-gray-600">
+            <div className="flex items-start gap-2.5">
+              <Calendar size={18} className="mt-0.5 shrink-0 text-gray-400" />
+              <span>{reservation.date}</span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <Clock size={18} className="mt-0.5 shrink-0 text-gray-400" />
+              <span>
+                {reservation.timeSlot
+                  ? `${reservation.timeSlot.startTime} - ${reservation.timeSlot.endTime}`
+                  : 'Créneau inconnu'}
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <MapPin size={18} className="mt-0.5 shrink-0 text-gray-400" />
+              <span className="leading-relaxed">{fieldInfo.address}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:w-auto sm:min-w-[148px] sm:items-end">
+          <div className="flex flex-col gap-2 sm:items-end">
+            <span
+              className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(
+                reservation.status
+              )}`}
+            >
+              {getStatusText(reservation.status)}
+            </span>
+            <div
+              className={`text-lg font-semibold tabular-nums ${
+                variant === 'upcoming' ? 'text-green-600' : 'text-gray-600'
+              }`}
+            >
+              {reservation.totalPrice}€
+            </div>
+          </div>
+
+          {variant === 'upcoming' && onEdit && onCancel && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={onEdit}
+                className="w-full rounded-md bg-green-600 px-4 py-2 text-center text-sm font-medium text-white shadow-sm transition hover:bg-green-700 sm:min-w-[148px]"
+              >
+                Modifier
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="w-full rounded-md bg-red-600 px-4 py-2 text-center text-sm font-medium text-white shadow-sm transition hover:bg-red-700 sm:min-w-[148px]"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
+
+          {variant === 'past' && (
+            <button
+              type="button"
+              className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent py-2 text-sm font-medium text-green-600 transition hover:text-green-700 sm:w-auto sm:justify-end"
+            >
+              <Star size={16} className="shrink-0" />
+              Noter
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Profile: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('reservations');
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<string | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        console.log('Fetching reservations...');
+        setLoading(true);
+        const response = await apiService.getMyReservations({ limit: 100 });
+        
+        console.log('API Response:', response);
+        
+        if (response.success) {
+          const list = Array.isArray(response.data) ? response.data : [];
+          console.log('Setting reservations:', list);
+          setReservations(list);
+        } else {
+          console.log('API Error:', response.message);
+          setError('Erreur lors du chargement des réservations');
+        }
+      } catch (error) {
+        console.error('Error fetching reservations:', error);
+        setError('Erreur lors du chargement des réservations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReservations();
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  // Données simulées - à remplacer par de vraies données API
-  const reservations = [
-    {
-      id: '1',
-      fieldName: 'Stade Municipal Jean Bouin',
-      date: '2024-04-22',
-      timeSlot: '18:30 - 20:00',
-      status: 'confirmed',
-      price: 35,
-      address: '123 Avenue des Sports, Paris 15ème'
-    },
-    {
-      id: '2',
-      fieldName: 'Complex Sportif Le Parc',
-      date: '2024-04-25',
-      timeSlot: '14:00 - 15:30',
-      status: 'confirmed',
-      price: 40,
-      address: '45 Rue du Football, Lyon'
-    },
-    {
-      id: '3',
-      fieldName: 'Terrain Les Verts',
-      date: '2024-04-15',
-      timeSlot: '20:00 - 21:30',
-      status: 'completed',
-      price: 30,
-      address: '78 Boulevard Sportif, Marseille'
+  const startOfToday = () => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  };
+
+  /** Parse YYYY-MM-DD in local calendar (avoids UTC off-by-one). Returns null if invalid. */
+  const parseReservationDay = (dateStr: string): Date | null => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const t = dateStr.trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+    if (m) {
+      const y = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10) - 1;
+      const d = parseInt(m[3], 10);
+      const local = new Date(y, mo, d);
+      return Number.isNaN(local.getTime()) ? null : local;
     }
-  ];
+    const parsed = new Date(t);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
-  const upcomingReservations = reservations.filter(r => r.status === 'confirmed');
-  const pastReservations = reservations.filter(r => r.status === 'completed');
+  const isOnOrAfterToday = (dateStr: string) => {
+    const day = parseReservationDay(dateStr);
+    if (day === null) return true;
+    return day >= startOfToday();
+  };
 
-  const handleCancelReservation = (reservationId: string) => {
-    setSelectedReservation(reservationId);
+  const isBeforeToday = (dateStr: string) => {
+    const day = parseReservationDay(dateStr);
+    if (day === null) return false;
+    return day < startOfToday();
+  };
+
+  // API creates bookings as `pending`; only `confirmed` was shown under "À venir", so `pending` was invisible.
+  const upcomingReservations = reservations.filter(
+    r =>
+      (r.status === 'pending' || r.status === 'confirmed') &&
+      isOnOrAfterToday(r.date)
+  );
+  const pastReservations = reservations.filter(
+    r =>
+      r.status === 'completed' ||
+      ((r.status === 'confirmed' || r.status === 'pending') && isBeforeToday(r.date))
+  );
+  const cancelledReservations = reservations.filter(r => r.status === 'cancelled');
+
+  const shownIds = new Set([
+    ...upcomingReservations.map((r) => r.id),
+    ...pastReservations.map((r) => r.id),
+    ...cancelledReservations.map((r) => r.id),
+  ]);
+  const otherReservations = reservations.filter((r) => !shownIds.has(r.id));
+
+  const handleCancelReservation = (reservation: Reservation) => {
+    setSelectedReservation(reservation);
     setShowCancelModal(true);
   };
 
-  const confirmCancelReservation = () => {
-    // Handle cancellation logic here
-    setShowCancelModal(false);
-    setSelectedReservation(null);
+  const confirmCancelReservation = async () => {
+    if (!selectedReservation) return;
+
+    try {
+      const response = await apiService.cancelReservation(selectedReservation.id);
+      
+      if (response.success) {
+        // Update the reservation in the local state
+        setReservations(prev => 
+          prev.map(res => 
+            res.id === selectedReservation.id 
+              ? { ...res, status: 'cancelled' as const }
+              : res
+          )
+        );
+      } else {
+        setError(response.message || 'Erreur lors de l\'annulation');
+      }
+    } catch (error) {
+      console.error('Error cancelling reservation:', error);
+      setError('Erreur lors de l\'annulation');
+    } finally {
+      setShowCancelModal(false);
+      setSelectedReservation(null);
+    }
+  };
+
+  const handleEditReservation = (reservation: Reservation) => {
+    // Navigate to edit page or open edit modal
+    navigate(`/reservation/edit/${reservation.id}`);
+  };
+
+  // Helper function to get field information (populate can be null if field was removed)
+  const getFieldInfo = (fieldId: Reservation['fieldId']) => {
+    if (fieldId == null) {
+      return { name: 'Terrain inconnu', address: 'Adresse non spécifiée' };
+    }
+    if (typeof fieldId === 'string') {
+      return { name: 'Terrain inconnu', address: 'Adresse non spécifiée' };
+    }
+    const f = fieldId as { name?: string; address?: string };
+    return {
+      name: f.name || 'Terrain inconnu',
+      address: f.address || 'Adresse non spécifiée'
+    };
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'pending':
+        return 'bg-amber-100 text-amber-900';
       case 'confirmed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-50 text-green-800 ring-1 ring-inset ring-green-600/15';
       case 'completed':
         return 'bg-gray-100 text-gray-800';
       case 'cancelled':
@@ -75,6 +285,8 @@ const Profile: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
+      case 'pending':
+        return 'En attente';
       case 'confirmed':
         return 'Confirmée';
       case 'completed':
@@ -86,6 +298,33 @@ const Profile: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Mon Profil</h1>
@@ -94,7 +333,7 @@ const Profile: React.FC = () => {
         {/* Sidebar */}
         <div className="lg:col-span-1">
           {/* User Info Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-center mb-4">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
                 {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
@@ -123,7 +362,7 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="font-semibold mb-4">Actions rapides</h3>
             <div className="space-y-2">
               <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition">
@@ -150,25 +389,27 @@ const Profile: React.FC = () => {
         {/* Main Content */}
         <div className="lg:col-span-2">
           {/* Tabs */}
-          <div className="bg-white rounded-lg shadow-lg mb-6">
-            <div className="border-b">
-              <div className="flex">
+          <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-200 bg-white">
+                <div className="flex">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('reservations')}
-                  className={`px-6 py-3 font-medium transition ${
+                  className={`px-6 py-3.5 text-sm font-medium transition ${
                     activeTab === 'reservations'
-                      ? 'text-green-600 border-b-2 border-green-600'
-                      : 'text-gray-600 hover:text-gray-800'
+                      ? 'border-b-2 border-green-600 text-green-600'
+                      : 'border-b-2 border-transparent text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   Mes Réservations
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('favorites')}
-                  className={`px-6 py-3 font-medium transition ${
+                  className={`px-6 py-3.5 text-sm font-medium transition ${
                     activeTab === 'favorites'
-                      ? 'text-green-600 border-b-2 border-green-600'
-                      : 'text-gray-600 hover:text-gray-800'
+                      ? 'border-b-2 border-green-600 text-green-600'
+                      : 'border-b-2 border-transparent text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   Terrains favoris
@@ -177,111 +418,115 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            <div className="p-6">
+            <div className="p-6 md:p-8">
               {activeTab === 'reservations' && (
                 <div>
-                  <h3 className="text-xl font-semibold mb-6">Mes réservations</h3>
-                  
+                  <h3 className="mb-8 text-2xl font-bold tracking-tight text-gray-900">
+                    Mes réservations
+                  </h3>
+
                   {/* Upcoming Reservations */}
                   {upcomingReservations.length > 0 && (
-                    <div className="mb-8">
-                      <h4 className="font-medium mb-4 text-gray-700">À venir</h4>
+                    <div className="mb-10">
+                      <h4 className="mb-4 text-base font-semibold text-gray-800">À venir</h4>
                       <div className="space-y-4">
-                        {upcomingReservations.map((reservation) => (
-                          <div key={reservation.id} className="border rounded-lg p-4 hover:shadow-md transition">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h5 className="font-semibold text-lg mb-2">{reservation.fieldName}</h5>
-                                <div className="space-y-1 text-sm text-gray-600">
-                                  <div className="flex items-center">
-                                    <Calendar size={16} className="mr-2" />
-                                    <span>{reservation.date}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock size={16} className="mr-2" />
-                                    <span>{reservation.timeSlot}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <MapPin size={16} className="mr-2" />
-                                    <span>{reservation.address}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="mb-2">
-                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reservation.status)}`}>
-                                    {getStatusText(reservation.status)}
-                                  </span>
-                                </div>
-                                <div className="text-lg font-semibold text-green-600 mb-2">
-                                  {reservation.price}e
-                                </div>
-                                <div className="space-y-2">
-                                  <button className="block w-full text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">
-                                    Modifier
-                                  </button>
-                                  <button
-                                    onClick={() => handleCancelReservation(reservation.id)}
-                                    className="block w-full text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
-                                  >
-                                    Annuler
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                        {upcomingReservations.map((reservation) => {
+                          const fieldInfo = getFieldInfo(reservation.fieldId);
+                          return (
+                            <ReservationListCard
+                              key={reservation.id}
+                              reservation={reservation}
+                              fieldInfo={fieldInfo}
+                              variant="upcoming"
+                              getStatusColor={getStatusColor}
+                              getStatusText={getStatusText}
+                              onEdit={() => handleEditReservation(reservation)}
+                              onCancel={() => handleCancelReservation(reservation)}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
                   {/* Past Reservations */}
                   {pastReservations.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-4 text-gray-700">Passées</h4>
+                    <div className="mb-10">
+                      <h4 className="mb-4 text-base font-semibold text-gray-800">Passées</h4>
                       <div className="space-y-4">
-                        {pastReservations.map((reservation) => (
-                          <div key={reservation.id} className="border rounded-lg p-4 opacity-75">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h5 className="font-semibold text-lg mb-2">{reservation.fieldName}</h5>
-                                <div className="space-y-1 text-sm text-gray-600">
-                                  <div className="flex items-center">
-                                    <Calendar size={16} className="mr-2" />
-                                    <span>{reservation.date}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock size={16} className="mr-2" />
-                                    <span>{reservation.timeSlot}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="mb-2">
-                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reservation.status)}`}>
-                                    {getStatusText(reservation.status)}
-                                  </span>
-                                </div>
-                                <div className="text-lg font-semibold text-gray-600">
-                                  {reservation.price}e
-                                </div>
-                                <button className="mt-2 text-sm text-green-600 hover:text-green-700 flex items-center">
-                                  <Star size={16} className="mr-1" />
-                                  Noter
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                        {pastReservations.map((reservation) => {
+                          const fieldInfo = getFieldInfo(reservation.fieldId);
+                          return (
+                            <ReservationListCard
+                              key={reservation.id}
+                              reservation={reservation}
+                              fieldInfo={fieldInfo}
+                              variant="past"
+                              getStatusColor={getStatusColor}
+                              getStatusText={getStatusText}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {upcomingReservations.length === 0 && pastReservations.length === 0 && (
+                  {/* Cancelled Reservations */}
+                  {cancelledReservations.length > 0 && (
+                    <div>
+                      <h4 className="mb-4 text-base font-semibold text-gray-800">Annulées</h4>
+                      <div className="space-y-4">
+                        {cancelledReservations.map((reservation) => {
+                          const fieldInfo = getFieldInfo(reservation.fieldId);
+                          return (
+                            <ReservationListCard
+                              key={reservation.id}
+                              reservation={reservation}
+                              fieldInfo={fieldInfo}
+                              variant="cancelled"
+                              getStatusColor={getStatusColor}
+                              getStatusText={getStatusText}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Réservations non classées (statut ou date inattendus) */}
+                  {otherReservations.length > 0 && (
+                    <div className="mb-10">
+                      <h4 className="mb-4 text-base font-semibold text-gray-800">Autres</h4>
+                      <div className="space-y-4">
+                        {otherReservations.map((reservation, idx) => {
+                          const fieldInfo = getFieldInfo(reservation.fieldId);
+                          return (
+                            <ReservationListCard
+                              key={reservation.id || `other-${idx}`}
+                              reservation={reservation}
+                              fieldInfo={fieldInfo}
+                              variant="other"
+                              getStatusColor={getStatusColor}
+                              getStatusText={getStatusText}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {upcomingReservations.length === 0 &&
+                    pastReservations.length === 0 &&
+                    cancelledReservations.length === 0 &&
+                    otherReservations.length === 0 && (
                     <div className="text-center py-12">
                       <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
                       <p className="text-gray-600 text-lg mb-4">Vous n'avez aucune réservation</p>
-                      <button className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/fields')}
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+                      >
                         Réserver un terrain
                       </button>
                     </div>

@@ -17,6 +17,10 @@ export interface TimeSlot {
   price?: number;
 }
 
+export interface AuthRequest extends Request {
+  user?: any;
+}
+
 export interface Reservation {
   id: string;
   fieldId: string;

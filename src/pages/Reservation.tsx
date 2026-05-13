@@ -1,29 +1,68 @@
-import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, Users, CreditCard, ChevronLeft, Check } from 'lucide-react';
+import { apiService, Field, TimeSlot } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+
+interface LocationState {
+  date: string;
+  timeSlot: TimeSlot;
+}
 
 const Reservation: React.FC = () => {
   const { fieldId } = useParams<{ fieldId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [field, setField] = useState<Field | null>(null);
+  const [reservationData, setReservationData] = useState<LocationState | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
     teamName: '',
     playerCount: '11',
     paymentMethod: 'card',
     termsAccepted: false
   });
 
-  const field = {
-    id: fieldId || '1',
-    name: 'Stade Municipal Jean Bouin',
-    address: '123 Avenue des Sports, Paris 15ème',
-    price: 35,
-    date: '2024-04-22',
-    timeSlot: { startTime: '18:30', endTime: '20:00' }
-  };
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { redirectTo: `/reservation/${fieldId}` } });
+      return;
+    }
+
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get reservation data from location state
+        const state = location.state as LocationState;
+        if (!state || !state.date || !state.timeSlot) {
+          setError('Informations de réservation manquantes');
+          return;
+        }
+        setReservationData(state);
+
+        // Fetch field details
+        if (fieldId) {
+          const response = await apiService.getFieldById(fieldId);
+          if (response.success && response.data) {
+            setField(response.data);
+          } else {
+            setError('Terrain non trouvé');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing reservation:', error);
+        setError('Erreur lors du chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [fieldId, location.state, isAuthenticated, navigate]);
 
   const steps = [
     { id: 1, title: 'Informations personnelles', icon: Users },
@@ -37,13 +76,36 @@ const Reservation: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
       // Handle final submission
-      navigate('/profile');
+      try {
+        if (!field || !reservationData || !user) {
+          setError('Données manquantes pour la réservation');
+          return;
+        }
+
+        const reservationPayload = {
+          fieldId: field.id,
+          date: reservationData.date,
+          timeSlot: reservationData.timeSlot,
+          totalPrice: reservationData.timeSlot.price || field.price
+        };
+
+        const response = await apiService.createReservation(reservationPayload);
+        
+        if (response.success) {
+          setCurrentStep(4);
+        } else {
+          setError(response.message || 'Erreur lors de la réservation');
+        }
+      } catch (error) {
+        console.error('Reservation error:', error);
+        setError('Erreur lors de la réservation');
+      }
     }
   };
 
@@ -52,51 +114,23 @@ const Reservation: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nom complet
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-                required
-              />
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-semibold mb-2">Vos informations</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Nom:</span>
+                  <span>{user?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Email:</span>
+                  <span>{user?.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Téléphone:</span>
+                  <span>{user?.phone}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Téléphone
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500"
-                required
-              />
-            </div>
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nom de l'équipe (optionnel)
@@ -125,20 +159,26 @@ const Reservation: React.FC = () => {
                 <option value="22">22 joueurs</option>
               </select>
             </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-semibold mb-3">Récapitulatif de la réservation</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Terrain:</span>
-                  <span>{field.name}</span>
+                  <span>{field?.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Date:</span>
-                  <span>{field.date}</span>
+                  <span>{reservationData?.date}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Créneau:</span>
-                  <span>{field.timeSlot.startTime} - {field.timeSlot.endTime}</span>
+                  <span>{reservationData?.timeSlot.startTime} - {reservationData?.timeSlot.endTime}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Durée:</span>
@@ -146,10 +186,25 @@ const Reservation: React.FC = () => {
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Total:</span>
-                  <span className="text-green-600">{field.price}e</span>
+                  <span className="text-green-600">{reservationData?.timeSlot.price || field?.price}e</span>
                 </div>
               </div>
             </div>
+            {formData.teamName && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">Détails de l'équipe</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Nom de l'équipe:</span>
+                    <span>{formData.teamName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Nombre de joueurs:</span>
+                    <span>{formData.playerCount}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -252,20 +307,20 @@ const Reservation: React.FC = () => {
               <h3 className="font-semibold mb-3">Détails de la réservation</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Numéro de réservation:</span>
-                  <span className="font-mono">#RES-2024-0422</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-600">Terrain:</span>
-                  <span>{field.name}</span>
+                  <span>{field?.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Date:</span>
-                  <span>{field.date}</span>
+                  <span>{reservationData?.date}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Créneau:</span>
-                  <span>{field.timeSlot.startTime} - {field.timeSlot.endTime}</span>
+                  <span>{reservationData?.timeSlot.startTime} - {reservationData?.timeSlot.endTime}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="text-green-600">{reservationData?.timeSlot.price || field?.price}e</span>
                 </div>
               </div>
             </div>
@@ -282,6 +337,34 @@ const Reservation: React.FC = () => {
         return null;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !field || !reservationData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Erreur</h1>
+          <p className="text-gray-600 mb-6">{error || 'Données manquantes'}</p>
+          <Link
+            to="/fields"
+            className="inline-flex items-center text-green-600 hover:text-green-700"
+          >
+            <ChevronLeft size={20} className="mr-1" />
+            Retour aux terrains
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
